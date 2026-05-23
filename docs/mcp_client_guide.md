@@ -1,104 +1,256 @@
-# MCP Client Guide (Codex / Other Agents)
+# MCP Client Guide
 
-This guide explains how to connect another project's AI agent (for example Codex) to this PgSentinel instance over MCP, and what the agent can safely do.
+This guide explains how to connect an AI agent or MCP client to a running PgSentinel instance.
 
-## 1. Prerequisites
+PgSentinel uses the **Streamable HTTP** MCP transport. Any client that supports this transport can connect.
 
-- PgSentinel container is running and reachable (example: `http://127.0.0.1:8088`).
-- Vault is configured and unlocked.
-- Agent API key is enabled in `/admin/agent`.
-- You have the key value in format: `pgs_ai_...`.
+---
 
-Quick check:
+## Prerequisites
+
+- PgSentinel is running and reachable (e.g. `http://127.0.0.1:8088`)
+- Vault is configured and unlocked (first-run setup completed)
+- An Agent API Key has been generated from `/admin/agent`
+- You have the key in the format `pgs_ai_...`
+
+Quick health check:
 
 ```bash
 curl -sS http://127.0.0.1:8088/health
 ```
 
-Expected:
-- `status: ok`
-- `vault: unlocked` (for tool use)
+Expected response includes `"status": "ok"` and `"vault": "unlocked"`. If the vault shows `"locked"`, log in at `/admin/login` to unlock it before agent calls will work.
 
-## 2. MCP Endpoint + Auth
+---
 
-- Endpoint: `POST /mcp/mcp`
-- Auth header: `Authorization: Bearer pgs_ai_...`
-- Accept header must include both:
-  - `application/json`
-  - `text/event-stream`
+## Connection Details
 
-## 3. Minimal Handshake (Client-Agnostic)
+| Setting | Value |
+|---------|-------|
+| Endpoint | `http://127.0.0.1:8088/mcp/mcp` |
+| Transport | Streamable HTTP (MCP 2025-03-26) |
+| Auth | `Authorization: Bearer pgs_ai_...` |
+| Accept | `application/json, text/event-stream` |
 
-1. Send `initialize`.
-2. Read `mcp-session-id` response header.
-3. Send next MCP calls with the same `mcp-session-id`.
+---
 
-Example `initialize`:
+## Client Configuration Examples
+
+### Claude Code
+
+Add to your project's `.mcp.json` (create it in the project root if it doesn't exist):
+
+```json
+{
+  "mcpServers": {
+    "pgsentinel": {
+      "type": "http",
+      "url": "http://127.0.0.1:8088/mcp/mcp",
+      "headers": {
+        "Authorization": "Bearer pgs_ai_YOUR_KEY"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Code after saving. The PgSentinel tools will appear in the tool list.
+
+### Cursor
+
+In Cursor settings, add a new MCP server under **Tools & Integrations → MCP Servers**:
+
+- **Name**: `pgsentinel`
+- **Type**: HTTP / Streamable HTTP
+- **URL**: `http://127.0.0.1:8088/mcp/mcp`
+- **Authorization**: `Bearer pgs_ai_YOUR_KEY`
+
+### Codex (OpenAI)
+
+In your Codex project's MCP client configuration:
+
+```json
+{
+  "name": "pgsentinel",
+  "transport": "http",
+  "url": "http://127.0.0.1:8088/mcp/mcp",
+  "auth": {
+    "type": "bearer",
+    "token": "pgs_ai_YOUR_KEY"
+  }
+}
+```
+
+### Generic / Manual (curl)
+
+If your client is not listed above, follow the standard MCP session handshake:
 
 ```bash
+# Step 1: initialize — note the mcp-session-id in the response headers
 curl -i -sS \
   -H "Authorization: Bearer pgs_ai_YOUR_KEY" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -X POST http://127.0.0.1:8088/mcp/mcp \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"agent","version":"1.0"}}}'
-```
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"my-agent","version":"1.0"}}}'
 
-Then call tools (replace `MCP_SESSION_ID`):
-
-```bash
+# Step 2: use the session ID from the response header on all subsequent calls
 curl -sS \
   -H "Authorization: Bearer pgs_ai_YOUR_KEY" \
-  -H "mcp-session-id: MCP_SESSION_ID" \
+  -H "mcp-session-id: SESSION_ID_FROM_STEP_1" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -X POST http://127.0.0.1:8088/mcp/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
-## 4. How To Register In Another Codex Project
+---
 
-In the other project, add PgSentinel as an external MCP server in that project's MCP client settings.
+## Remote Access
 
-Use:
-- Base URL: `http://127.0.0.1:8088/mcp/mcp` (or host IP/domain where PgSentinel runs)
-- Transport: Streamable HTTP / HTTP MCP
-- Bearer token: `pgs_ai_...`
+If PgSentinel runs on a different machine than your agent, replace `127.0.0.1` with the host's IP or DNS name.
 
-If the other project runs in a separate container/VM, `127.0.0.1` points to itself. In that case use the host IP or DNS name of the machine running PgSentinel.
+```json
+"url": "http://192.168.1.10:8088/mcp/mcp"
+```
 
-## 5. What The Agent Can Do
+PgSentinel binds to `127.0.0.1` by default. To allow remote connections, either:
+- Expose it through a reverse proxy with HTTPS and authentication, or
+- Access it over a VPN or SSH tunnel.
 
-- Docker diagnostics:
-  - `health_overview`
-  - `get_docker_containers`
-  - `get_container_logs`
-  - `search_logs`
-  - `get_recent_errors`
-- PostgreSQL diagnostics:
-  - `get_postgres_health`
-  - `list_allowed_tables`
-  - `describe_table`
-  - `get_table_sample`
-  - `query_readonly_sql` (must be enabled on the selected target and policy-enforced)
-- Cross-source diagnosis:
-  - `diagnose_recent_failure`
+Do not expose PgSentinel directly to the public internet without a protective layer in front.
 
-## 6. SQL Policy Behavior
+---
 
-Configured from `/admin/settings`:
+## Available Tools
 
-- `readonly_default`:
-  - only read statements allowed.
-- `guarded_write`:
-  - write categories allowed only if their checkbox is enabled.
+### Docker & infrastructure
 
-`query_readonly_sql` is registered, but execution requires target-level enablement plus SQL policy approval at runtime.
+| Tool | Description |
+|------|-------------|
+| `health_overview` | Overall health status across configured targets |
+| `get_docker_containers` | List containers and their state |
+| `get_deployment_info` | Current image tags and deploy timestamps |
+| `get_container_image_info` | Image details for a specific container |
+| `get_container_status` | Running/stopped/unhealthy status |
+| `get_container_restart_count` | Restart count for a container |
+| `get_container_logs` | Raw log lines from a container |
+| `search_logs` | Full-text search across logs |
+| `get_recent_errors` | Recent error-level log lines |
+| `get_errors_grouped` | Error lines grouped by pattern |
+| `get_logs_since_deploy` | Log lines since the last deploy event |
 
-## 7. Safety Notes
+### PostgreSQL
 
-- Keep production in `readonly_default` except short, controlled validation windows.
-- Use isolated test tables for write-path validation.
-- Rotate agent key after sharing with a temporary client.
-- Keep allowlists tight (containers, tables, schemas).
-- Review `/admin/audit` after test runs.
+| Tool | Description |
+|------|-------------|
+| `get_postgres_health` | Connection check and basic DB stats |
+| `list_allowed_tables` | Tables available to the agent |
+| `describe_table` | Column names and types for a table |
+| `get_table_sample` | Sample rows (masked) from an allowed table |
+| `get_recent_migrations` | Latest migration history entries |
+| `get_failed_jobs` | Failed background job rows |
+| `get_table_row_count` | Row count for an allowed table |
+| `query_readonly_sql` | Policy-guarded SQL (must be enabled per target) |
+
+### Diagnosis
+
+| Tool | Description |
+|------|-------------|
+| `diagnose_recent_failure` | Cross-source failure diagnosis (logs + DB) |
+| `diagnose_deployment_issue` | Deployment-specific failure signals |
+| `diagnose_worker_issue` | Background worker failure signals |
+| `diagnose_database_issue` | Database connectivity and health signals |
+| `diagnose_http_5xx_issue` | HTTP 500-class error pattern analysis |
+
+### Source inspection
+
+| Tool | Description |
+|------|-------------|
+| `check_source_contains` | Check if an allowlisted source file contains a pattern |
+| `check_python_symbols_in_module` | List symbols in an allowlisted Python module |
+
+---
+
+## Specifying Targets
+
+Most tools accept optional `server` and `postgres_target` parameters to select which configured target to use.
+
+If you have only one server and one PostgreSQL target configured, you can omit these — PgSentinel will use the default. If you have multiple, specify by the target's `id` as set in the vault.
+
+**Docker/log tools** — use `server`:
+```json
+{
+  "name": "get_recent_errors",
+  "arguments": {
+    "server": "production-vps",
+    "log_name": "app",
+    "minutes": 30
+  }
+}
+```
+
+**PostgreSQL tools** — use `postgres_target`:
+```json
+{
+  "name": "get_table_sample",
+  "arguments": {
+    "postgres_target": "prod-readonly-db",
+    "table": "failed_jobs",
+    "limit": 10
+  }
+}
+```
+
+**Diagnosis tools** — accept both:
+```json
+{
+  "name": "diagnose_recent_failure",
+  "arguments": {
+    "server": "production-vps",
+    "postgres_target": "prod-readonly-db",
+    "minutes": 60
+  }
+}
+```
+
+---
+
+## SQL Policy
+
+`query_readonly_sql` is controlled by two independent gates:
+
+1. **Target-level**: must be explicitly enabled on the PostgreSQL target in `/admin/postgres`.
+2. **Policy mode** (configured in `/admin/settings`):
+   - `readonly_default` — only `SELECT`, `WITH`, `EXPLAIN`, `SHOW`, `VALUES` are permitted.
+   - `guarded_write` — write categories (`INSERT`, `UPDATE`, `DELETE`, etc.) are allowed only if their individual toggle is enabled.
+
+Keep production targets in `readonly_default`. Only enable `guarded_write` temporarily for controlled validation on isolated tables.
+
+---
+
+## Troubleshooting
+
+**`503 Vault is locked`**
+The vault needs to be unlocked by the operator. Log in at `/admin/login` with the master password.
+
+**`401 Unauthorized` or `Invalid agent key format`**
+The `Authorization` header is missing, malformed, or the key has been rotated/disabled. Generate a new key from `/admin/agent`.
+
+**`Server '<host>' not found in known_hosts`**
+The SSH host key for the target server has not been trusted yet. This happens after a container restart if `PGSENTINEL_SSH_KNOWN_HOSTS` is not configured to a persistent path. See [deployment.md](deployment.md#ssh-known-hosts-persistence-after-restart).
+
+**`target not found` or `no default target`**
+The tool call specifies a `server` or `postgres_target` ID that does not exist in the vault, or multiple targets are configured and no default is set. Check target IDs in `/admin/servers` and `/admin/postgres`.
+
+**Tool returns empty or no output**
+The requested container or table may not be in the allowlist for that target. Check `allowed_containers` and `allowed_tables` in the target's vault configuration.
+
+---
+
+## Safety Notes
+
+- Keep `readonly_default` SQL policy on production targets at all times.
+- Keep allowlists narrow — only list the containers and tables the agent actually needs.
+- Rotate the agent key if it was shared with a temporary session or a third party.
+- Review `/admin/audit` after any diagnostic session to confirm no unexpected calls were made.
