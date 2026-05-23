@@ -1,0 +1,33 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Unlock Vault</h1>
+<div class="card">
+  <p class="muted" style="margin-bottom:1.5rem">Enter your master password to unlock the vault.</p>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if message %}<div class="success">{{ message }}</div>{% endif %}
+  {% if vault_names and vault_names|length > 0 %}
+  <form method="post" action="/admin/login/select_vault" autocomplete="off" spellcheck="false" style="margin-bottom:1rem">
+    <div class="form-group">
+      <label for="vault_name">Vault</label>
+      <select id="vault_name" name="name">
+        {% for n in vault_names %}
+        <option value="{{ n }}">{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="actions">
+      <button class="secondary" type="submit">Use Selected Vault</button>
+    </div>
+  </form>
+  {% endif %}
+  <form method="post" action="/admin/login" autocomplete="off" spellcheck="false">
+    <div class="form-group">
+      <label for="mp">Master Password</label>
+      <input type="password" id="mp" name="master_password" autocomplete="current-password" required autofocus>
+    </div>
+    <div class="actions">
+      <button type="submit">Unlock</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

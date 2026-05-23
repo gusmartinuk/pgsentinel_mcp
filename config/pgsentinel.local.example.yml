@@ -1,0 +1,60 @@
+project:
+  name: "PgSentinel MCP"
+  environment: "local"
+
+server:
+  mode: "local"
+
+security:
+  default_readonly: true
+  allow_write_tools: false
+  allow_raw_sql: false
+  allow_raw_shell: false
+  max_log_lines: 300
+  max_query_rows: 100
+  command_timeout_seconds: 20
+
+docker:
+  allowed_containers:
+    - "marketing-apilot-postgres"
+    - "marketing-apilot-web"
+
+postgres:
+  container_name: "marketing-apilot-postgres"
+  database: "marketing_apilot"
+  username: "marketing_apilot"
+  password: "replace-with-local-password"
+  host_inside_container: "localhost"
+  port_inside_container: 5432
+  allowed_schemas:
+    - "public"
+  allowed_tables:
+    - "alembic_version"
+    - "market_sellers"
+    - "outreach_settings"
+
+logs:
+  allowed_logs:
+    app:
+      type: "docker"
+      container: "marketing-apilot-web"
+      max_lines: 300
+    postgres:
+      type: "docker"
+      container: "marketing-apilot-postgres"
+      max_lines: 300
+
+masking:
+  patterns:
+    - "password="
+    - "PASSWORD="
+    - "token="
+    - "TOKEN="
+    - "Authorization:"
+    - "Bearer "
+    - "DATABASE_URL="
+    - "DB_PASSWORD="
+    - "SECRET_KEY="
+    - "APP_KEY="
+    - "SECRET="
+    - "PRIVATE_KEY"

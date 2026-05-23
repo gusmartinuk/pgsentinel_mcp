@@ -1,0 +1,38 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Agent Access</h1>
+
+{% if show_key %}
+<div class="card" style="border-color: var(--warning)">
+  <h2 style="color: var(--warning)">New Agent API Key</h2>
+  <p class="muted">Copy this key now. It will never be shown again.</p>
+  <div class="key-display">{{ show_key }}</div>
+  <p class="muted">Use this in your MCP client: <code>Authorization: Bearer {{ show_key }}</code></p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Current Status</h2>
+  <table>
+    <tr><td>Agent access</td><td><span class="badge badge-{{ 'green' if agent.enabled else 'red' }}">{{ 'Enabled' if agent.enabled else 'Disabled' }}</span></td></tr>
+    <tr><td>Key configured</td><td>{{ 'Yes' if agent.key_hash else 'No' }}</td></tr>
+    <tr><td>Last rotated</td><td>{{ agent.last_rotated or 'Never' }}</td></tr>
+  </table>
+  <div class="actions">
+    <form class="inline-form" method="post" action="/admin/agent/rotate">
+      <button type="submit">Rotate Key</button>
+    </form>
+    <form class="inline-form" method="post" action="/admin/agent/toggle">
+      <input type="hidden" name="enabled" value="{{ 'false' if agent.enabled else 'true' }}">
+      <button type="submit" class="{{ 'danger' if agent.enabled else 'secondary' }}">{{ 'Disable Agent Access' if agent.enabled else 'Enable Agent Access' }}</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>MCP Usage</h2>
+  <p class="muted">AI agents authenticate with:</p>
+  <pre>Authorization: Bearer pgs_ai_YOUR_KEY_HERE</pre>
+  <p class="muted">The key is stored only as a hash. Rotating the key invalidates the previous key immediately.</p>
+</div>
+{% endblock %}

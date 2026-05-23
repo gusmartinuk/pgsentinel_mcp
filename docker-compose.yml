@@ -1,0 +1,42 @@
+services:
+  pgsentinel-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pgsentinel-mcp
+    restart: unless-stopped
+    environment:
+      APP_PORT: 8088
+      PGSENTINEL_VAULT: /secure/pgsentinel/vault.enc
+      PGSENTINEL_AUDIT_LOG: /var/log/pgsentinel/audit.log
+      PGSENTINEL_SERVER_LOG: /var/log/pgsentinel/server.log
+      PGSENTINEL_MCP_HTTP_ENABLED: "true"
+      PGSENTINEL_ENV: production
+      PGSENTINEL_COOKIE_SECURE: "${PGSENTINEL_COOKIE_SECURE:-true}"
+      PGSENTINEL_ALLOW_LEGACY_CONFIG: "${PGSENTINEL_ALLOW_LEGACY_CONFIG:-false}"
+      PGSENTINEL_REQUIRE_EXISTING_VAULT: "${PGSENTINEL_REQUIRE_EXISTING_VAULT:-false}"
+      PGSENTINEL_VAULT_DIR: "${PGSENTINEL_VAULT_DIR:-}"
+      PGSENTINEL_ACTIVE_VAULT_FILE: "${PGSENTINEL_ACTIVE_VAULT_FILE:-}"
+      PGSENTINEL_SSH_KNOWN_HOSTS: "${PGSENTINEL_SSH_KNOWN_HOSTS:-/secure/pgsentinel/known_hosts}"
+    ports:
+      - "127.0.0.1:${PGSENTINEL_PORT:-8088}:8088"
+    volumes:
+      - ${PGSENTINEL_DATA_DIR:-/secure/pgsentinel}:/secure/pgsentinel
+      - pgsentinel-logs:/var/log/pgsentinel
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "from urllib.request import urlopen; urlopen('http://127.0.0.1:8088/health').read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgsentinel-logs:

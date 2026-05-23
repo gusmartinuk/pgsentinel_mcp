@@ -1,0 +1,12 @@
+.venv
+.venv-linux
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+audit
+*.pyc
+.env
+pgsentinel.secrets.yml
+config/pgsentinel.secrets.yml
+config/*.local.yml

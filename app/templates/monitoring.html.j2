@@ -1,0 +1,29 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Monitoring Targets</h1>
+
+<div class="actions" style="margin-bottom:1rem">
+  <a href="/admin/monitoring/new"><button>Add Target</button></a>
+</div>
+
+{% if not targets %}
+<div class="card"><p class="muted">No monitoring targets defined.</p></div>
+{% else %}
+<table>
+  <thead><tr><th>Name</th><th>Environment</th><th>Mode</th><th>Base URL</th><th>Operations</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for t in targets %}
+  <tr>
+    <td><strong>{{ t.name }}</strong></td>
+    <td><span class="badge badge-{{ 'green' if t.environment == 'production' else ('yellow' if t.environment == 'staging' else 'gray') }}">{{ t.environment }}</span></td>
+    <td>{{ t.connection_mode }}</td>
+    <td>{{ t.base_url }}</td>
+    <td>{{ t.allowed_operations | length }}</td>
+    <td><span class="badge badge-{{ 'green' if t.enabled else 'red' }}">{{ 'enabled' if t.enabled else 'disabled' }}</span></td>
+    <td><a href="/admin/monitoring/{{ t.id }}/edit">edit</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

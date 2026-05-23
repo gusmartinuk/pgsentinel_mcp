@@ -1,0 +1,58 @@
+.venv/
+.venv-linux/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+audit/
+*.log
+.env
+.env.*
+!.env.example
+pgsentinel.secrets.yml
+config/pgsentinel.secrets.yml
+config/*.local.yml
+
+# Vault / runtime secrets
+*.vault.enc
+*.vault.enc.bak
+vault.enc
+vault.enc.bak
+.active_vault
+.vault_initialized
+known_hosts
+
+# Keys / certs
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Local tools / IDE / OS
+.DS_Store
+.idea/
+.vscode/
+.codex/
+.agents/
+docs/images/debug/
+
+# Build / packaging
+dist/
+build/
+*.egg-info/
+
+# Internal-only docs (keep private)
+AGENTS.md
+docs/continuity.md
+docs/request_log.md
+docs/spec.md
+docs/security_spec_update.md
+docs/AGENTS.md
+docs/todo.md
+docs/backlog.md
+docs/specs.md
+docs/oss_release_guide.md

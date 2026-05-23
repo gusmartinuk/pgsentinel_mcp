@@ -1,0 +1,36 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Vault Dashboard</h1>
+
+<div class="meta">
+  <div class="meta-item"><span class="meta-label">Vault</span><span class="meta-value"><span class="badge badge-green">Unlocked</span></span></div>
+  <div class="meta-item"><span class="meta-label">Servers</span><span class="meta-value">{{ server_count }}</span></div>
+  <div class="meta-item"><span class="meta-label">PostgreSQL</span><span class="meta-value">{{ pg_count }}</span></div>
+  <div class="meta-item"><span class="meta-label">Monitoring</span><span class="meta-value">{{ monitoring_count }}</span></div>
+  <div class="meta-item"><span class="meta-label">Agent Access</span><span class="meta-value">{{ 'Enabled' if agent_enabled else 'Disabled' }}</span></div>
+</div>
+
+<div class="card">
+  <h2>Security Settings</h2>
+  <table>
+    <tr><td>Auto-lock timeout</td><td>{{ vault_data.settings.auto_lock_minutes }} minutes</td></tr>
+    <tr><td>Max log lines</td><td>{{ vault_data.settings.max_log_lines }}</td></tr>
+    <tr><td>Max query rows</td><td>{{ vault_data.settings.max_query_rows }}</td></tr>
+    <tr><td>SQL policy mode</td><td>{{ vault_data.settings.sql_policy_mode }}</td></tr>
+    <tr><td>Command timeout</td><td>{{ vault_data.settings.command_timeout_seconds }}s</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Agent Access</h2>
+  <table>
+    <tr><td>State</td><td><span class="badge badge-{{ 'green' if vault_data.agent.enabled else 'red' }}">{{ 'Enabled' if vault_data.agent.enabled else 'Disabled' }}</span></td></tr>
+    <tr><td>Key configured</td><td>{{ 'Yes' if vault_data.agent.key_hash else 'No' }}</td></tr>
+    <tr><td>Last rotated</td><td>{{ vault_data.agent.last_rotated or 'Never' }}</td></tr>
+  </table>
+</div>
+
+<div class="actions">
+  <form class="inline-form" method="post" action="/admin/lock"><button class="danger" type="submit">Lock Vault</button></form>
+</div>
+{% endblock %}

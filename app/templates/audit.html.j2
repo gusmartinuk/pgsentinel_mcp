@@ -1,0 +1,26 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Audit Log</h1>
+<div class="card">
+  <p class="muted" style="margin-bottom:1rem">Recent audit events (newest first). Secrets and full outputs are never included.</p>
+  {% if not events %}
+  <p class="muted">No audit events recorded yet.</p>
+  {% else %}
+  <table>
+    <thead><tr><th>Time</th><th>Actor</th><th>Event</th><th>Tool</th><th>Target</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.get("timestamp", "")[:19] }}</td>
+      <td><span class="badge badge-{{ 'green' if e.get('actor_type') == 'admin' else ('yellow' if e.get('actor_type') == 'agent' else 'gray') }}">{{ e.get("actor_type", "system") }}</span></td>
+      <td>{{ e.get("event", e.get("tool", "?")) }}</td>
+      <td>{{ e.get("tool", "-") }}</td>
+      <td>{{ e.get("target", "-") }}</td>
+      <td><span class="badge badge-{{ 'green' if e.get('status') == 'success' else 'red' }}">{{ e.get("status", "?") }}</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

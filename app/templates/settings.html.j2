@@ -1,0 +1,67 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Security Settings</h1>
+<div class="card">
+  <form method="post" action="/admin/settings" autocomplete="off" spellcheck="false">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="auto_lock_minutes">Auto-lock Timeout (minutes)</label>
+        <input id="auto_lock_minutes" name="auto_lock_minutes" type="number" value="{{ settings.auto_lock_minutes }}" min="1" max="1440">
+      </div>
+      <div class="form-group">
+        <label for="max_log_lines">Max Log Lines</label>
+        <input id="max_log_lines" name="max_log_lines" type="number" value="{{ settings.max_log_lines }}" min="1" max="5000">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="max_query_rows">Max Query Rows</label>
+        <input id="max_query_rows" name="max_query_rows" type="number" value="{{ settings.max_query_rows }}" min="1" max="1000">
+      </div>
+      <div class="form-group">
+        <label for="command_timeout_seconds">Command Timeout (seconds)</label>
+        <input id="command_timeout_seconds" name="command_timeout_seconds" type="number" value="{{ settings.command_timeout_seconds }}" min="1" max="300">
+      </div>
+    </div>
+    <hr>
+    <h2>SQL Policy</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="sql_policy_mode">Mode</label>
+        <select id="sql_policy_mode" name="sql_policy_mode">
+          <option value="readonly_default" {% if settings.sql_policy_mode != "guarded_write" %}selected{% endif %}>readonly_default</option>
+          <option value="guarded_write" {% if settings.sql_policy_mode == "guarded_write" %}selected{% endif %}>guarded_write</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="sql_hard_max_query_rows">SQL Hard Max Rows</label>
+        <input id="sql_hard_max_query_rows" name="sql_hard_max_query_rows" type="number" value="{{ settings.sql_hard_max_query_rows }}" min="1" max="5000">
+      </div>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" name="sql_allow_insert" value="true" {% if settings.sql_allow_insert %}checked{% endif %}> Allow INSERT</label>
+      <label><input type="checkbox" name="sql_allow_update" value="true" {% if settings.sql_allow_update %}checked{% endif %}> Allow UPDATE</label>
+      <label><input type="checkbox" name="sql_allow_delete" value="true" {% if settings.sql_allow_delete %}checked{% endif %}> Allow DELETE</label>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" name="sql_allow_create" value="true" {% if settings.sql_allow_create %}checked{% endif %}> Allow CREATE</label>
+      <label><input type="checkbox" name="sql_allow_alter" value="true" {% if settings.sql_allow_alter %}checked{% endif %}> Allow ALTER</label>
+      <label><input type="checkbox" name="sql_allow_drop" value="true" {% if settings.sql_allow_drop %}checked{% endif %}> Allow DROP</label>
+      <label><input type="checkbox" name="sql_allow_truncate" value="true" {% if settings.sql_allow_truncate %}checked{% endif %}> Allow TRUNCATE</label>
+    </div>
+    <div class="form-row">
+      <label><input type="checkbox" name="sql_allow_maintenance" value="true" {% if settings.sql_allow_maintenance %}checked{% endif %}> Allow MAINTENANCE</label>
+      <label><input type="checkbox" name="sql_allow_privilege" value="true" {% if settings.sql_allow_privilege %}checked{% endif %}> Allow GRANT/REVOKE</label>
+      <label><input type="checkbox" name="sql_allow_transaction" value="true" {% if settings.sql_allow_transaction %}checked{% endif %}> Allow TRANSACTION</label>
+    </div>
+    <div class="form-group">
+      <label for="masking_patterns_text">Masking Patterns (one per line)</label>
+      <textarea id="masking_patterns_text" name="masking_patterns_text">{{ patterns | join('\n') }}</textarea>
+      <span class="muted">Lines matching these patterns will be masked in all outputs.</span>
+    </div>
+    <div class="actions">
+      <button type="submit">Save Settings</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

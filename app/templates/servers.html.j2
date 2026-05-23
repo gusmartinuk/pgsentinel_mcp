@@ -1,0 +1,32 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>VPS Servers</h1>
+
+<div class="actions" style="margin-bottom:1rem">
+  <a href="/admin/servers/new"><button>Add Server</button></a>
+</div>
+
+{% if not servers %}
+<div class="card"><p class="muted">No servers defined. Add one to get started.</p></div>
+{% else %}
+<table>
+  <thead><tr><th>Name</th><th>Environment</th><th>Mode</th><th>Host</th><th>Username</th><th>Containers</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for s in servers %}
+  <tr>
+    <td><strong>{{ s.name }}</strong></td>
+    <td><span class="badge badge-{{ 'green' if s.environment == 'production' else ('yellow' if s.environment == 'staging' else 'gray') }}">{{ s.environment }}</span></td>
+    <td>{{ s.connection_mode }}</td>
+    <td>{{ s.host }}</td>
+    <td>{{ s.ssh_username }}</td>
+    <td>{{ s.allowed_containers | length }}</td>
+    <td><span class="badge badge-{{ 'green' if s.enabled else 'red' }}">{{ 'enabled' if s.enabled else 'disabled' }}</span></td>
+    <td>
+      <a href="/admin/servers/{{ s.id }}/edit">edit</a>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

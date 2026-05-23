@@ -1,0 +1,23 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>First-Run Setup</h1>
+<div class="card">
+  <p class="muted" style="margin-bottom:1.5rem">Create your master password. This password encrypts the vault and unlocks the web panel.</p>
+  {% if errors %}
+    {% for err in errors %}<div class="error">{{ err }}</div>{% endfor %}
+  {% endif %}
+  <form method="post" action="/admin/setup" autocomplete="off" spellcheck="false">
+    <div class="form-group">
+      <label for="mp">Master Password</label>
+      <input type="password" id="mp" name="master_password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+    </div>
+    <div class="form-group">
+      <label for="cp">Confirm Master Password</label>
+      <input type="password" id="cp" name="confirm_password" autocomplete="new-password" required minlength="8">
+    </div>
+    <div class="actions">
+      <button type="submit">Create Vault</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

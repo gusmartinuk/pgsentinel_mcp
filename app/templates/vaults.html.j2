@@ -1,0 +1,81 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<div class="card">
+  <h1>Vault Management</h1>
+  <p class="muted" style="margin-bottom:1rem">Active vault: <strong>{{ active_vault }}</strong></p>
+  {% if errors %}
+    <div class="error">
+      {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <h2>Vault List</h2>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Path</th><th>Exists</th><th>Size</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for v in vaults %}
+      <tr>
+        <td>{{ v.name }} {% if v.active %}<span class="badge badge-green">active</span>{% endif %}</td>
+        <td><code>{{ v.path }}</code></td>
+        <td>{{ "yes" if v.exists else "no" }}</td>
+        <td>{{ v.size }}</td>
+        <td>
+          <form class="inline-form" method="post" action="/admin/vaults/switch">
+            <input type="hidden" name="name" value="{{ v.name }}">
+            <button type="submit" class="secondary">Switch</button>
+          </form>
+          <a class="btn secondary" href="/admin/vaults/{{ v.name }}/download">Download</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Create New Vault</h2>
+  <form method="post" action="/admin/vaults/create" autocomplete="off" spellcheck="false">
+    <div class="form-group">
+      <label for="name">Vault Name *</label>
+      <input id="name" name="name" required placeholder="production">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="master_password">Master Password *</label>
+        <input id="master_password" name="master_password" type="password" required minlength="8" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label for="confirm_password">Confirm Password *</label>
+        <input id="confirm_password" name="confirm_password" type="password" required minlength="8" autocomplete="new-password">
+      </div>
+    </div>
+    <button type="submit">Create Vault</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Import Encrypted Vault</h2>
+  <form method="post" action="/admin/vaults/import" enctype="multipart/form-data" autocomplete="off" spellcheck="false">
+    <div class="form-group">
+      <label for="import_name">Vault Name *</label>
+      <input id="import_name" name="name" required placeholder="staging">
+    </div>
+    <div class="form-group">
+      <label for="file">Vault File *</label>
+      <input id="file" name="file" type="file" required>
+    </div>
+    <div class="form-group">
+      <label><input type="checkbox" name="activate" checked> Activate after import</label>
+      <label><input type="checkbox" name="overwrite"> Overwrite if exists</label>
+    </div>
+    <button type="submit">Import Vault</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Export Active Vault</h2>
+  <a class="btn" href="/admin/vaults/download">Download Active Vault</a>
+</div>
+{% endblock %}
