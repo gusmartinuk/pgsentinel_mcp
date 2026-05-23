@@ -16,32 +16,32 @@ security:
 
 docker:
   allowed_containers:
-    - "marketing-apilot-postgres"
-    - "marketing-apilot-web"
+    - "myapp-postgres"
+    - "myapp-web"
 
 postgres:
-  container_name: "marketing-apilot-postgres"
-  database: "marketing_apilot"
-  username: "marketing_apilot"
+  container_name: "myapp-postgres"
+  database: "myapp"
+  username: "myapp_user"
   password: "replace-with-local-password"
   host_inside_container: "localhost"
   port_inside_container: 5432
   allowed_schemas:
     - "public"
   allowed_tables:
-    - "alembic_version"
-    - "market_sellers"
-    - "outreach_settings"
+    - "migrations"
+    - "users"
+    - "jobs"
 
 logs:
   allowed_logs:
     app:
       type: "docker"
-      container: "marketing-apilot-web"
+      container: "myapp-web"
       max_lines: 300
     postgres:
       type: "docker"
-      container: "marketing-apilot-postgres"
+      container: "myapp-postgres"
       max_lines: 300
 
 masking:
