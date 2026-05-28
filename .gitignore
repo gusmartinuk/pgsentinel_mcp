@@ -38,6 +38,7 @@ id_ed25519
 .vscode/
 .codex/
 .agents/
+.claude/
 docs/images/debug/
 
 # Build / packaging
