@@ -91,13 +91,11 @@ def main() -> int:
 
         _capture(page, base_url, "/admin/login", out_dir / "login.png")
         _capture(page, base_url, "/admin/dashboard", out_dir / "dashboard.png")
-        _capture(page, base_url, "/admin/servers", out_dir / "servers.png")
-        _capture(page, base_url, "/admin/postgres", out_dir / "postgres.png")
-        _capture(page, base_url, "/admin/monitoring", out_dir / "monitoring.png")
+        _capture(page, base_url, "/admin/definitions", out_dir / "definitions.png")
+        _capture(page, base_url, "/admin/definitions/new", out_dir / "definition_form.png")
         _capture(page, base_url, "/admin/agent", out_dir / "agent.png")
         _capture(page, base_url, "/admin/settings", out_dir / "settings.png")
         _capture(page, base_url, "/admin/audit", out_dir / "audit.png")
-        _capture(page, base_url, "/admin/vaults", out_dir / "vaults.png")
 
         browser.close()
 

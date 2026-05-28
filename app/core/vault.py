@@ -94,6 +94,7 @@ class AgentConfig:
     enabled: bool = False
     key_hash: str = ""
     last_rotated: str = ""
+    expires_at: str = ""
 
 
 @dataclass
@@ -185,6 +186,16 @@ class VaultData:
             if m.id == target_id:
                 return m
         return None
+
+    def is_agent_key_expired(self) -> bool:
+        if not self.agent.expires_at:
+            return False
+        try:
+            from datetime import datetime, timezone
+            expires = datetime.fromisoformat(self.agent.expires_at.replace("Z", "+00:00"))
+            return expires <= datetime.now(timezone.utc)
+        except Exception:
+            return True
 
 
 class Vault:

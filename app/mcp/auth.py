@@ -9,7 +9,7 @@ from starlette.types import ASGIApp
 
 from app.core.agent_key import verify_agent_token, is_valid_agent_token_format
 from app.core.audit import write_audit_event
-from app.core.vault_manager import vault_exists, vault_is_locked, vault_is_unlocked, get_vault_data
+from app.core.vault_manager import vault_exists, vault_is_locked, vault_is_unlocked, get_vault_data, try_auto_unlock
 
 
 class MCPAuthMiddleware(BaseHTTPMiddleware):
@@ -47,12 +47,15 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
             )
 
         if vault_is_locked():
-            self._audit("mcp_auth_failed", reason="vault_locked")
-            return Response(
-                content=json.dumps({"error": "Vault is locked. Unlock via the admin panel first."}),
-                status_code=503,
-                media_type="application/json",
-            )
+            if try_auto_unlock():
+                self._audit("mcp_vault_auto_unlock_success")
+            else:
+                self._audit("mcp_vault_auto_unlock_failed")
+                return Response(
+                    content=json.dumps({"error": "Vault is locked. Unlock via the admin panel first."}),
+                    status_code=503,
+                    media_type="application/json",
+                )
 
         try:
             data = get_vault_data()
@@ -84,6 +87,13 @@ class MCPAuthMiddleware(BaseHTTPMiddleware):
             self._audit("mcp_auth_failed", reason="invalid_key")
             return Response(
                 content=json.dumps({"error": "Invalid agent key."}),
+                status_code=401,
+                media_type="application/json",
+            )
+        if data.is_agent_key_expired():
+            self._audit("mcp_auth_failed", reason="key_expired")
+            return Response(
+                content=json.dumps({"error": "Agent key expired."}),
                 status_code=401,
                 media_type="application/json",
             )

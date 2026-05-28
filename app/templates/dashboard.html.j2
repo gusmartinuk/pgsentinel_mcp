@@ -4,10 +4,17 @@
 
 <div class="meta">
   <div class="meta-item"><span class="meta-label">Vault</span><span class="meta-value"><span class="badge badge-green">Unlocked</span></span></div>
-  <div class="meta-item"><span class="meta-label">Servers</span><span class="meta-value">{{ server_count }}</span></div>
-  <div class="meta-item"><span class="meta-label">PostgreSQL</span><span class="meta-value">{{ pg_count }}</span></div>
-  <div class="meta-item"><span class="meta-label">Monitoring</span><span class="meta-value">{{ monitoring_count }}</span></div>
+  <div class="meta-item"><span class="meta-label">Active definition</span><span class="meta-value">{{ active_vault }}</span></div>
+  <div class="meta-item"><span class="meta-label">VPS mode</span><span class="meta-value">{{ server.connection_mode if server else 'not set' }}</span></div>
+  <div class="meta-item"><span class="meta-label">PostgreSQL</span><span class="meta-value">{{ 'yes' if has_postgres else 'no' }}</span></div>
+  <div class="meta-item"><span class="meta-label">Access</span><span class="meta-value">{{ access_level }}</span></div>
+  <div class="meta-item"><span class="meta-label">Definitions</span><span class="meta-value">{{ definition_count }}</span></div>
   <div class="meta-item"><span class="meta-label">Agent Access</span><span class="meta-value">{{ 'Enabled' if agent_enabled else 'Disabled' }}</span></div>
+</div>
+
+<div class="actions" style="margin-bottom:1rem">
+  <a href="/admin/definitions/{{ active_vault }}/edit"><button type="button">Edit Active Definition</button></a>
+  <a href="/admin/definitions"><button type="button" class="secondary">All Definitions</button></a>
 </div>
 
 <div class="card">

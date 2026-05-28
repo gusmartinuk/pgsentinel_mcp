@@ -30,4 +30,26 @@
     </div>
   </form>
 </div>
+
+<div class="card">
+  <h2>Recovery Reset</h2>
+  <p class="muted" style="margin-bottom:0.75rem">If master password is lost, reset with recovery key.</p>
+  <form method="post" action="/admin/login/recovery_reset" autocomplete="off" spellcheck="false">
+    <div class="form-group">
+      <label for="recovery_key">Recovery Key</label>
+      <input id="recovery_key" name="recovery_key" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="new_master_password">New Master Password</label>
+        <input id="new_master_password" name="new_master_password" type="password" required minlength="8">
+      </div>
+      <div class="form-group">
+        <label for="confirm_master_password">Confirm New Password</label>
+        <input id="confirm_master_password" name="confirm_master_password" type="password" required minlength="8">
+      </div>
+    </div>
+    <button type="submit">Reset With Recovery Key</button>
+  </form>
+</div>
 {% endblock %}

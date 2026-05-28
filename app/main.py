@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app import __version__
 from app.admin.routes import router as admin_router, UnauthorizedRedirect
 from app.core.config import ConfigError, get_config
-from app.core.vault_manager import vault_exists, vault_is_unlocked
+from app.core.vault_manager import try_auto_unlock, vault_exists, vault_is_unlocked
 from app.mcp.auth import MCPAuthMiddleware
 from app.mcp.server import create_mcp_server
 
@@ -33,6 +33,11 @@ def _create_mcp_app():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        if vault_exists():
+            try_auto_unlock()
+    except Exception:
+        pass
     if _mcp_instance is not None and hasattr(_mcp_instance, 'session_manager'):
         try:
             sm = _mcp_instance.session_manager

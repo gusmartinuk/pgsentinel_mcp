@@ -1,0 +1,175 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>{{ "New Definition" if is_new else "Edit Definition — " + code }}</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if saved %}<div class="success">Definition {{ saved }} successfully.</div>{% endif %}
+
+<div class="card">
+  <form method="post" action="{{ '/admin/definitions/new' if is_new else '/admin/definitions/' + code + '/edit' }}" autocomplete="off">
+    {% if is_new %}
+    <div class="form-group">
+      <label>Definition Code (exactly 8 letters/digits)</label>
+      <input name="code" minlength="8" maxlength="8" pattern="[A-Za-z0-9]{8}" value="{{ code }}" required autofocus>
+      <p class="muted">This is the <code>profile_code</code> your MCP client passes. Stored lowercase.</p>
+    </div>
+    {% else %}
+    <div class="form-group"><label>Definition Code</label><input value="{{ code }}" readonly></div>
+    {% endif %}
+
+    <h2>VPS / Docker Host</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Connection mode *</label>
+        <select id="docker_mode" name="docker_mode" onchange="syncDocker()">
+          <option value="local" {{ 'selected' if server.connection_mode != 'ssh' else '' }}>local — Docker socket on this host</option>
+          <option value="ssh" {{ 'selected' if server.connection_mode == 'ssh' else '' }}>ssh — remote VPS</option>
+        </select>
+      </div>
+      <div class="form-group ssh-only"><label>SSH Host *</label><input id="host" name="host" value="{{ server.host }}"></div>
+    </div>
+    <div class="form-row ssh-only">
+      <div class="form-group"><label>SSH Port</label><input id="ssh_port" name="ssh_port" type="number" value="{{ server.ssh_port }}"></div>
+      <div class="form-group"><label>SSH User *</label><input id="ssh_username" name="ssh_username" value="{{ server.ssh_username }}"></div>
+    </div>
+    <div class="form-group ssh-only">
+      <label>SSH Private Key{{ '' if is_new else ' (leave blank to keep the saved key)' }}</label>
+      <textarea id="ssh_private_key" name="ssh_private_key" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Allowed Docker containers for log access (comma-separated; blank = allow all)</label>
+      <input id="container_list" name="container_list" value="{{ server.allowed_containers | join(', ') }}">
+    </div>
+    <button type="button" class="secondary" onclick="testConn('vps')">Test VPS Connection</button>
+    <div id="vps-test-result" style="margin-top:0.5rem"></div>
+
+    <h2>PostgreSQL (optional)</h2>
+    <div class="form-group">
+      <label><input id="postgres_enabled" type="checkbox" name="postgres_enabled" value="true" {{ 'checked' if pg_target else '' }} onchange="syncPg()"> Enable PostgreSQL access</label>
+    </div>
+    <div id="pg-section">
+      <div class="form-group">
+        <label>PostgreSQL connection mode</label>
+        <select id="postgres_mode" name="postgres_mode" onchange="syncPg()">
+          {% set pgm = pg_target.connection_mode if pg_target else 'postgres_direct_tcp' %}
+          <option value="postgres_direct_tcp" {{ 'selected' if pgm == 'postgres_direct_tcp' else '' }}>postgres_direct_tcp — direct TCP (local DB, no SSH)</option>
+          <option value="postgres_direct_tls" {{ 'selected' if pgm == 'postgres_direct_tls' else '' }}>postgres_direct_tls — direct TCP over TLS</option>
+          <option value="docker_exec_psql_over_ssh" {{ 'selected' if pgm == 'docker_exec_psql_over_ssh' else '' }}>docker_exec_psql_over_ssh — psql in container via SSH</option>
+          <option value="ssh_tunnel_direct_postgres" {{ 'selected' if pgm == 'ssh_tunnel_direct_postgres' else '' }}>ssh_tunnel_direct_postgres — direct DB through SSH tunnel</option>
+        </select>
+        <p class="muted pg-hint-dockerexec">Runs <code>psql</code> inside the named container via the VPS's Docker (local socket if VPS mode = local, or over SSH). DB Container must be the actual PostgreSQL container; use its internal port (usually <strong>5432</strong>), not the host-published port.</p>
+        <p class="muted pg-hint-tunnel">Connects through an SSH tunnel — set VPS connection mode to <strong>ssh</strong>. Host/port are as seen from the VPS (usually <code>127.0.0.1</code>).</p>
+        <p class="muted pg-hint-direct">PgSentinel connects directly over TCP. Inside a container <code>127.0.0.1</code> means the container itself — use the host gateway (e.g. <code>172.17.0.1:&lt;published-port&gt;</code>) or a reachable DB host/service name, not the public IP.</p>
+      </div>
+      <div class="form-row">
+        <div class="form-group pg-host"><label>DB Host</label><input id="pg_host" name="pg_host" value="{{ pg_target.host if pg_target else '127.0.0.1' }}"></div>
+        <div class="form-group pg-host"><label>DB Port</label><input id="pg_port" type="number" name="pg_port" value="{{ pg_target.port if pg_target else 5432 }}"></div>
+      </div>
+      <div class="form-group pg-container"><label>DB Container</label><input id="pg_container" name="pg_container" value="{{ pg_target.container_name if pg_target else '' }}"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Database</label><input id="pg_database" name="pg_database" value="{{ pg_target.database_name if pg_target else '' }}"></div>
+        <div class="form-group"><label>User</label><input id="pg_username" name="pg_username" value="{{ pg_target.readonly_username if pg_target else '' }}"></div>
+      </div>
+      <div class="form-group">
+        <label>Password{{ ' (blank = keep saved)' if pg_target else '' }}</label>
+        <input id="pg_password" type="password" name="pg_password" autocomplete="new-password">
+      </div>
+      <div class="pg-tls">
+        <div class="form-group">
+          <label>SSL Mode</label>
+          {% set ssl = pg_target.ssl_mode if pg_target else 'prefer' %}
+          <select id="pg_ssl_mode" name="pg_ssl_mode">
+            {% for m in ['disable','allow','prefer','require','verify-ca','verify-full'] %}
+            <option value="{{ m }}" {{ 'selected' if ssl == m else '' }}>{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>CA Cert (PEM, optional)</label><textarea name="pg_ca_cert" placeholder="-----BEGIN CERTIFICATE-----"></textarea></div>
+        <div class="form-group"><label>Client Cert (PEM, optional)</label><textarea name="pg_client_cert"></textarea></div>
+        <div class="form-group"><label>Client Key (PEM, optional)</label><textarea name="pg_client_key"></textarea></div>
+      </div>
+      <button type="button" class="secondary" onclick="testConn('postgres')">Test PostgreSQL</button>
+      <div id="pg-test-result" style="margin-top:0.5rem"></div>
+    </div>
+
+    <h2>Access level</h2>
+    <div class="form-group">
+      <select name="access_level" id="access_level">
+        <option value="readonly" {{ 'selected' if access_level == 'readonly' else '' }}>Read-only (default, safest)</option>
+        <option value="sql" {{ 'selected' if access_level == 'sql' else '' }}>Read-only + ad-hoc SELECT queries</option>
+        <option value="write" {{ 'selected' if access_level == 'write' else '' }}>Guarded write (INSERT/UPDATE/DELETE) — opt-in</option>
+      </select>
+      <p class="muted">Read-only is the default. Guarded write enables insert/update/delete for this definition; finer DDL toggles are in Settings.</p>
+    </div>
+
+    <div class="actions">
+      <button type="submit">Save</button>
+      <a href="/admin/definitions"><button type="button" class="secondary">Cancel</button></a>
+    </div>
+  </form>
+</div>
+
+{% if not is_new and agent %}
+<div class="card">
+  <h2>Agent Key for this definition</h2>
+  <table>
+    <tr><td>Agent access</td><td><span class="badge badge-{{ 'green' if agent.enabled else 'red' }}">{{ 'Enabled' if agent.enabled else 'Disabled' }}</span></td></tr>
+    <tr><td>Key configured</td><td>{{ 'Yes' if agent.key_hash else 'No' }}</td></tr>
+    <tr><td>Last rotated</td><td>{{ agent.last_rotated or 'Never' }}</td></tr>
+    <tr><td>Expires at</td><td>{{ agent.expires_at or 'Never (no expiry)' }}</td></tr>
+  </table>
+  <div class="actions">
+    <form class="inline-form" method="post" action="/admin/agent/rotate">
+      <input type="number" name="key_ttl_days" min="1" max="3650" value="30" title="Days until the new key expires">
+      <label><input type="checkbox" name="key_never_expires" value="true"> Never expires</label>
+      <button type="submit">Rotate Key</button>
+    </form>
+  </div>
+  <p class="muted">MCP client uses <code>Authorization: Bearer &lt;key&gt;</code> with <code>profile_code "{{ code }}"</code>. The new key is shown once on the Agent Key page after rotating.</p>
+</div>
+{% endif %}
+
+<script>
+function syncDocker() {
+  var ssh = document.getElementById('docker_mode').value === 'ssh';
+  document.querySelectorAll('.ssh-only').forEach(function (el) { el.style.display = ssh ? '' : 'none'; });
+}
+function syncPg() {
+  var enabled = document.getElementById('postgres_enabled').checked;
+  document.getElementById('pg-section').style.display = enabled ? '' : 'none';
+  var mode = document.getElementById('postgres_mode').value;
+  var showContainer = mode === 'docker_exec_psql_over_ssh';
+  var showTls = mode === 'postgres_direct_tls';
+  var isDirect = (mode === 'postgres_direct_tcp' || mode === 'postgres_direct_tls');
+  document.querySelectorAll('.pg-container').forEach(function (el) { el.style.display = showContainer ? '' : 'none'; });
+  document.querySelectorAll('.pg-tls').forEach(function (el) { el.style.display = showTls ? '' : 'none'; });
+  document.querySelectorAll('.pg-hint-dockerexec').forEach(function (el) { el.style.display = showContainer ? '' : 'none'; });
+  document.querySelectorAll('.pg-hint-tunnel').forEach(function (el) { el.style.display = (mode === 'ssh_tunnel_direct_postgres') ? '' : 'none'; });
+  document.querySelectorAll('.pg-hint-direct').forEach(function (el) { el.style.display = isDirect ? '' : 'none'; });
+}
+function testConn(kind) {
+  var box = document.getElementById(kind === 'vps' ? 'vps-test-result' : 'pg-test-result');
+  box.textContent = 'Testing...';
+  var d = new URLSearchParams();
+  function v(id, def) { var el = document.getElementById(id); return el ? (el.value || def) : def; }
+  d.append('target', kind);
+  d.append('docker_mode', v('docker_mode', 'local'));
+  d.append('host', v('host', ''));
+  d.append('ssh_port', v('ssh_port', '22'));
+  d.append('ssh_username', v('ssh_username', ''));
+  d.append('ssh_private_key', v('ssh_private_key', ''));
+  d.append('postgres_mode', v('postgres_mode', 'postgres_direct_tcp'));
+  d.append('pg_host', v('pg_host', ''));
+  d.append('pg_port', v('pg_port', '5432'));
+  d.append('pg_container', v('pg_container', ''));
+  d.append('pg_database', v('pg_database', ''));
+  d.append('pg_username', v('pg_username', ''));
+  d.append('pg_password', v('pg_password', ''));
+  d.append('pg_ssl_mode', v('pg_ssl_mode', 'prefer'));
+  fetch('/admin/definitions/test', { method: 'POST', body: d })
+    .then(function (r) { return r.text(); })
+    .then(function (t) { box.innerHTML = t; })
+    .catch(function (e) { box.textContent = 'Test failed: ' + e.message; });
+}
+document.addEventListener('DOMContentLoaded', function () { syncDocker(); syncPg(); });
+</script>
+{% endblock %}

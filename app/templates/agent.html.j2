@@ -10,6 +10,13 @@
   <p class="muted">Use this in your MCP client: <code>Authorization: Bearer {{ show_key }}</code></p>
 </div>
 {% endif %}
+{% if show_recovery_key %}
+<div class="card" style="border-color: var(--danger)">
+  <h2 style="color: var(--danger)">Recovery Key</h2>
+  <p class="muted">Store this securely. It can reset master password.</p>
+  <div class="key-display">{{ show_recovery_key }}</div>
+</div>
+{% endif %}
 
 <div class="card">
   <h2>Current Status</h2>
@@ -17,9 +24,12 @@
     <tr><td>Agent access</td><td><span class="badge badge-{{ 'green' if agent.enabled else 'red' }}">{{ 'Enabled' if agent.enabled else 'Disabled' }}</span></td></tr>
     <tr><td>Key configured</td><td>{{ 'Yes' if agent.key_hash else 'No' }}</td></tr>
     <tr><td>Last rotated</td><td>{{ agent.last_rotated or 'Never' }}</td></tr>
+    <tr><td>Expires at</td><td>{{ agent.expires_at or 'Never (no expiry)' }}</td></tr>
   </table>
   <div class="actions">
     <form class="inline-form" method="post" action="/admin/agent/rotate">
+      <input type="number" name="key_ttl_days" min="1" max="3650" value="30" placeholder="TTL days">
+      <label><input type="checkbox" name="key_never_expires" value="true"> Never expires</label>
       <button type="submit">Rotate Key</button>
     </form>
     <form class="inline-form" method="post" action="/admin/agent/toggle">
@@ -33,6 +43,6 @@
   <h2>MCP Usage</h2>
   <p class="muted">AI agents authenticate with:</p>
   <pre>Authorization: Bearer pgs_ai_YOUR_KEY_HERE</pre>
-  <p class="muted">The key is stored only as a hash. Rotating the key invalidates the previous key immediately.</p>
+  <p class="muted">All definitions share this one agent key — set it in every project's MCP client and pick the target with <code>profile_code</code>. Rotating updates every definition at once and invalidates the previous key immediately. The key is stored only as a hash.</p>
 </div>
 {% endblock %}

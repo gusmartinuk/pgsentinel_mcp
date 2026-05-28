@@ -15,14 +15,17 @@ services:
       PGSENTINEL_COOKIE_SECURE: "${PGSENTINEL_COOKIE_SECURE:-true}"
       PGSENTINEL_ALLOW_LEGACY_CONFIG: "${PGSENTINEL_ALLOW_LEGACY_CONFIG:-false}"
       PGSENTINEL_REQUIRE_EXISTING_VAULT: "${PGSENTINEL_REQUIRE_EXISTING_VAULT:-false}"
-      PGSENTINEL_VAULT_DIR: "${PGSENTINEL_VAULT_DIR:-}"
-      PGSENTINEL_ACTIVE_VAULT_FILE: "${PGSENTINEL_ACTIVE_VAULT_FILE:-}"
+      PGSENTINEL_VAULT_DIR: "${PGSENTINEL_VAULT_DIR:-/secure/pgsentinel/vaults}"
+      PGSENTINEL_ACTIVE_VAULT_FILE: "${PGSENTINEL_ACTIVE_VAULT_FILE:-/secure/pgsentinel/vaults/.active_vault}"
       PGSENTINEL_SSH_KNOWN_HOSTS: "${PGSENTINEL_SSH_KNOWN_HOSTS:-/secure/pgsentinel/known_hosts}"
+      PGSENTINEL_MASTER_PASSWORD: "${PGSENTINEL_MASTER_PASSWORD:-}"
+      PGSENTINEL_MASTER_PASSWORD_FILE: "${PGSENTINEL_MASTER_PASSWORD_FILE:-/secure/pgsentinel/master_password.txt}"
     ports:
       - "127.0.0.1:${PGSENTINEL_PORT:-8088}:8088"
     volumes:
-      - ${PGSENTINEL_DATA_DIR:-/secure/pgsentinel}:/secure/pgsentinel
-      - pgsentinel-logs:/var/log/pgsentinel
+      - ${PGSENTINEL_DATA_DIR:-/opt/pgsentinel/data}:/secure/pgsentinel:rw
+      - ${PGSENTINEL_LOG_DIR:-/opt/pgsentinel/logs}:/var/log/pgsentinel:rw
+      - ${PGSENTINEL_DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock
     read_only: true
     tmpfs:
       - /tmp
@@ -37,6 +40,3 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
-volumes:
-  pgsentinel-logs:

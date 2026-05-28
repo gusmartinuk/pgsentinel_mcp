@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import json
 import os
+import sys
 import time
 from datetime import UTC, datetime
 from functools import wraps
@@ -20,12 +21,18 @@ def audit_log_path() -> Path:
 
 
 def write_audit_event(event: dict[str, Any]) -> None:
-    path = audit_log_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    # Audit logging must never crash the request it is recording. A read-only
+    # filesystem or a bind-mounted log owned by another user previously turned
+    # routine actions (e.g. admin login) into HTTP 500s.
     if "timestamp" not in event:
         event["timestamp"] = datetime.now(UTC).isoformat()
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(mask_data(event), sort_keys=True) + "\n")
+    try:
+        path = audit_log_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(mask_data(event), sort_keys=True) + "\n")
+    except OSError as exc:
+        print(f"pgsentinel: audit write failed ({exc})", file=sys.stderr)
 
 
 def _summarize_call(args: tuple[Any, ...], kwargs: dict[str, Any]) -> dict[str, Any]:

@@ -10,6 +10,10 @@ WORKDIR /app
 
 RUN addgroup --system app && adduser --system --ingroup app app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends docker.io gosu \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt ./requirements.txt
 RUN pip install --upgrade pip && pip install -r requirements.txt && pip install argon2-cffi jinja2 bcrypt python-multipart
 
@@ -24,8 +28,6 @@ COPY docker/app/entrypoint.sh /entrypoint.sh
 RUN mkdir -p /app/audit /secure/pgsentinel /var/log/pgsentinel \
     && chmod +x /entrypoint.sh \
     && chown -R app:app /app /entrypoint.sh /secure/pgsentinel /var/log/pgsentinel
-
-USER app
 
 EXPOSE 8088
 

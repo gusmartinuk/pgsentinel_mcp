@@ -1,0 +1,58 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h1>Definitions</h1>
+{% if saved %}<div class="success">Definition {{ saved }} successfully.</div>{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<div class="actions" style="margin-bottom:1rem">
+  <a href="/admin/definitions/new"><button>New Definition</button></a>
+  <a href="/admin/vaults/download"><button type="button" class="secondary">Backup Active</button></a>
+</div>
+
+<div class="card">
+  <table>
+    <thead><tr><th>Code</th><th>Active</th><th>Stored</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for v in vaults %}
+    <tr>
+      <td><strong>{{ v.name }}</strong></td>
+      <td>{% if v.name == active_vault %}<span class="badge badge-green">active</span>{% else %}<span class="badge badge-gray">no</span>{% endif %}</td>
+      <td>{{ "yes" if v.exists else "missing" }}</td>
+      <td>
+        <a href="/admin/definitions/{{ v.name }}/edit">edit</a>
+        &nbsp;·&nbsp;
+        <a href="/admin/vaults/{{ v.name }}/download">backup</a>
+        {% if v.name != active_vault %}
+        &nbsp;·&nbsp;
+        <form class="inline-form" method="post" action="/admin/definitions/{{ v.name }}/archive" onsubmit="return confirm('Archive definition {{ v.name }}? The encrypted file is renamed (kept on disk), not destroyed.');">
+          <button type="submit" class="secondary" style="padding:0.15rem 0.5rem">archive</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">A definition is one 8-char vault file (<code>&lt;code&gt;.vault.enc</code>) holding one VPS + optional PostgreSQL. Editing a definition makes it the active vault.</p>
+</div>
+
+<div class="card">
+  <h2>Restore / Import Definition</h2>
+  <p class="muted" style="margin-bottom:0.75rem">Upload a previously downloaded <code>.vault.enc</code> backup. It must unlock with the same master password.</p>
+  <form method="post" action="/admin/vaults/import" enctype="multipart/form-data">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Definition code (8 chars)</label>
+        <input name="name" minlength="8" maxlength="8" pattern="[A-Za-z0-9]{8}" required>
+      </div>
+      <div class="form-group">
+        <label>Backup file</label>
+        <input type="file" name="file" required>
+      </div>
+    </div>
+    <label><input type="checkbox" name="overwrite" value="true"> Overwrite if a definition with this code already exists</label>
+    <label><input type="checkbox" name="activate" value="true"> Make active after import (you will be asked to unlock)</label>
+    <div class="actions"><button type="submit">Import</button></div>
+  </form>
+</div>
+{% endblock %}

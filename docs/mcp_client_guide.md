@@ -174,41 +174,45 @@ Do not expose PgSentinel directly to the public internet without a protective la
 
 ## Specifying Targets
 
-Most tools accept optional `server` and `postgres_target` parameters to select which configured target to use.
+Every tool call **must** include a `profile_code`: the 8-character code of the
+definition you want to act on (created in **Admin → Definitions**). The code
+selects that definition's vault, auto-unlocks it, and resolves its single VPS
+and optional PostgreSQL target. There is no need to name a `server` or
+`postgres_target` separately — each definition holds exactly one of each.
 
-If you have only one server and one PostgreSQL target configured, you can omit these — PgSentinel will use the default. If you have multiple, specify by the target's `id` as set in the vault.
+Calls without a valid `profile_code` are rejected, and error messages never
+reveal other definitions' names.
 
-**Docker/log tools** — use `server`:
+**Docker/log tools:**
 ```json
 {
   "name": "get_recent_errors",
   "arguments": {
-    "server": "production-vps",
+    "profile_code": "abcd1234",
     "log_name": "app",
     "minutes": 30
   }
 }
 ```
 
-**PostgreSQL tools** — use `postgres_target`:
+**PostgreSQL tools:**
 ```json
 {
   "name": "get_table_sample",
   "arguments": {
-    "postgres_target": "prod-readonly-db",
+    "profile_code": "abcd1234",
     "table": "failed_jobs",
     "limit": 10
   }
 }
 ```
 
-**Diagnosis tools** — accept both:
+**Diagnosis tools:**
 ```json
 {
   "name": "diagnose_recent_failure",
   "arguments": {
-    "server": "production-vps",
-    "postgres_target": "prod-readonly-db",
+    "profile_code": "abcd1234",
     "minutes": 60
   }
 }
@@ -220,7 +224,7 @@ If you have only one server and one PostgreSQL target configured, you can omit t
 
 `query_readonly_sql` is controlled by two independent gates:
 
-1. **Target-level**: must be explicitly enabled on the PostgreSQL target in `/admin/postgres`.
+1. **Target-level**: must be explicitly enabled on the definition's PostgreSQL target in **Admin → Definitions → Edit**.
 2. **Policy mode** (configured in `/admin/settings`):
    - `readonly_default` — only `SELECT`, `WITH`, `EXPLAIN`, `SHOW`, `VALUES` are permitted.
    - `guarded_write` — write categories (`INSERT`, `UPDATE`, `DELETE`, etc.) are allowed only if their individual toggle is enabled.
@@ -240,8 +244,8 @@ The `Authorization` header is missing, malformed, or the key has been rotated/di
 **`Server '<host>' not found in known_hosts`**
 The SSH host key for the target server has not been trusted yet. This happens after a container restart if `PGSENTINEL_SSH_KNOWN_HOSTS` is not configured to a persistent path. See [deployment.md](deployment.md#ssh-known-hosts-persistence-after-restart).
 
-**`target not found` or `no default target`**
-The tool call specifies a `server` or `postgres_target` ID that does not exist in the vault, or multiple targets are configured and no default is set. Check target IDs in `/admin/servers` and `/admin/postgres`.
+**`target not found` or `profile_code not found`**
+The `profile_code` value does not match any definition in the vault, or the vault for that code could not be unlocked. Check that the definition exists in **Admin → Definitions** and that the master password is correct.
 
 **Tool returns empty or no output**
 The requested container or table may not be in the allowlist for that target. Check `allowed_containers` and `allowed_tables` in the target's vault configuration.

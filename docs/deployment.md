@@ -40,6 +40,12 @@ docker compose up -d
 
 This blocks startup if the vault file disappears unexpectedly and prevents silent re-initialization.
 
+The Compose entrypoint starts as root only long enough to repair bind-mount permissions for
+`/secure/pgsentinel` and `/var/log/pgsentinel`, create/touch the audit/server log files, and add the
+runtime app user to the mounted Docker socket group when available. It then drops privileges with
+`gosu` before starting Uvicorn. This prevents restart-time failures where an existing host
+`audit.log` is not writable by the app user.
+
 ## Multi-Vault Mode
 
 Use a vault directory and active vault pointer:
@@ -55,7 +61,7 @@ docker compose up -d
 In multi-vault mode, active vault path resolves to:
 `$PGSENTINEL_VAULT_DIR/<active_name>.vault.enc`
 
-Manage vault switching/import/export from `/admin/vaults`.
+Manage vault switching/import/export from `/admin/definitions` (Download / Restore buttons).
 Manage SQL execution policy from `/admin/settings`:
 - default `readonly_default` keeps SQL read-only,
 - optional `guarded_write` allows explicit category toggles,
@@ -88,7 +94,7 @@ Alternatively, back up the entire `/secure/pgsentinel` directory to off-host sto
 
 Vault files are AES-256-GCM encrypted and safe to store in encrypted backups. Do not store them in plain, unencrypted locations.
 
-You can also export a vault copy from the web panel at `/admin/vaults` → Export.
+You can also export a vault copy from the web panel at `/admin/definitions` → Download.
 
 ## SSH Known Hosts: Persistence After Restart
 
@@ -139,3 +145,24 @@ Production deployments should use the encrypted vault.
 - `GET /config/summary` — minimal public config/vault status only
 - `/admin/*` — web management panel (requires admin session)
 - `/mcp` — MCP endpoint (requires Agent API Key + unlocked vault)
+
+## 8-Char Definition Code Requirement
+
+- In multi-vault mode, each active definition file must use exactly 8 alphanumeric characters as its name/code.
+- MCP calls must include `profile_code` and it must match the active definition code.
+- Agent API keys may be rotated with expiry or configured as non-expiring.
+
+## Persistent Secrets And Recovery
+
+Recommended production env additions:
+- `PGSENTINEL_MASTER_PASSWORD_FILE=/run/secrets/pgsentinel_master_password`
+- `PGSENTINEL_DATA_DIR=/opt/pgsentinel/data`
+- `PGSENTINEL_LOG_DIR=/opt/pgsentinel/logs`
+
+Compose defaults `PGSENTINEL_MASTER_PASSWORD_FILE` to
+`/secure/pgsentinel/master_password.txt`; if that file exists in the persistent data mount, the app
+can unlock on startup/request without manual admin unlock. For stronger separation, override this to
+a Docker secret path such as `/run/secrets/pgsentinel_master_password`.
+
+Recovery sidecar:
+- Vault recovery metadata persists at `<vault>.recovery` and must be backed up with vault files.

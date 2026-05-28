@@ -35,6 +35,9 @@
 - Legacy config env var: `PGSENTINEL_ALLOW_LEGACY_CONFIG` (defaults false in production)
 - Audit log env var: `PGSENTINEL_AUDIT_LOG` (default `audit/pgsentinel-audit.jsonl`)
 - Legacy config env var: `PGSENTINEL_CONFIG` (fallback path)
+- Docker entrypoint: starts as root to repair persistent bind-mount ownership for data/log paths,
+  creates/touches audit and server log files, optionally maps the mounted Docker socket GID to the
+  app user, then drops to `app` via `gosu`.
 
 ## Module Map
 
@@ -58,6 +61,9 @@
   - `list_vaults()`, `get_active_vault_name()`
   - `switch_active_vault()`, `create_named_vault()`
   - `import_vault_bytes()`, `export_vault_bytes()`
+  - `_reset_active_vault_only()` — drops vault cache but preserves admin sessions + runtime master password (used by definition switching)
+  - `set_shared_agent_key()`, `set_shared_agent_enabled()` — propagate agent key / enabled state to all definition vaults
+  - `_apply_to_all_definitions(mutate)` — apply a mutation function to every vault in the vault dir
 
 ### `app/core/agent_key.py`
 - `generate_agent_token()` — `pgs_ai_*` format
@@ -70,13 +76,16 @@
 - `/admin/login` — unlock vault
 - `/admin/login/select_vault` — select existing vault when active vault pointer is missing/wrong
 - `/admin/dashboard` — vault status overview
-- `/admin/servers/*` — VPS server CRUD
-- `/admin/postgres/*` — PostgreSQL target CRUD
-- `/admin/monitoring/*` — monitoring target CRUD
-- `/admin/agent` — agent key management (rotate, toggle)
-- `/admin/settings` — security settings (including SQL policy mode, SQL category toggles, SQL hard max row cap)
+- `/admin/definitions` — definition list (each 8-char code = one vault + VPS + optional PostgreSQL)
+- `/admin/definitions/new` — create new definition
+- `/admin/definitions/<code>/edit` — edit existing definition
+- `/admin/definitions/<code>/archive` — soft-delete (rename) a definition vault
+- `/admin/definitions/test` — unified VPS + PostgreSQL connection test (used by the definition form)
+- `/admin/vaults/<name>/download` — download vault backup
+- `/admin/vaults/import` — import a vault file
+- `/admin/agent` — agent key management (rotate, toggle, shared across all definitions)
+- `/admin/settings` — security settings (SQL policy mode, SQL category toggles, SQL hard max row cap)
 - `/admin/audit` — audit log viewer
-- `/admin/vaults` — vault list/switch/create/import/export UI
 - All forms: `autocomplete="off"`, secret fields use `new-password`, no prefill on edit
 
 ### `app/mcp/auth.py`
@@ -123,11 +132,10 @@
 ### Templates (`app/templates/`)
 - `base.html.j2` — base layout with dark theme, nav bar, security headers
 - `setup.html.j2`, `login.html.j2` — setup and login
-- `dashboard.html.j2` — vault status
-- `servers.html.j2`, `server_form.html.j2` — server management
-- `postgres.html.j2`, `postgres_form.html.j2` — PostgreSQL targets
-- `monitoring.html.j2`, `monitoring_form.html.j2` — monitoring targets
-- `agent.html.j2` — agent key management
+- `dashboard.html.j2` — vault/definition status overview
+- `definitions.html.j2` — definition list with download/archive and vault import
+- `definition_form.html.j2` — single form: VPS (local/ssh) + optional PostgreSQL + access level
+- `agent.html.j2` — shared agent key management (rotate, toggle)
 - `settings.html.j2` — security settings
 - `audit.html.j2` — audit log viewer
 
@@ -141,16 +149,12 @@
 | `ssh_tunnel_direct_postgres` | SSH tunnel + psycopg | Direct PostgreSQL over SSH |
 | `postgres_direct_tcp` | Direct psycopg TCP | Private network PostgreSQL |
 | `postgres_direct_tls` | Direct psycopg with TLS | TLS-secured PostgreSQL |
-| `https_api` | HTTP requests with token | Monitoring/health APIs |
-| `monitoring_endpoint` | HTTP health checks | Service endpoints |
 
 ## Audit Events
 
 ### Admin
 - `first_run_setup_completed`, `vault_unlock_success`, `vault_unlock_failed`, `vault_lock`
-- `server_created`, `server_updated`, `server_deleted`
-- `postgres_target_created`, `postgres_target_updated`, `postgres_target_deleted`
-- `monitoring_target_created`, `monitoring_target_updated`, `monitoring_target_deleted`
+- `definition_created`, `definition_updated`, `definition_archived`
 - `agent_key_rotated`, `agent_access_enabled`, `agent_access_disabled`
 - `settings_updated`
 - `connection_test`
@@ -177,3 +181,20 @@ No plain secrets in: `.env`, YAML, JSON, SQLite, browser localStorage/sessionSto
 - Password fields: `autocomplete="new-password"` / `current-password`
 - No secrets in form prefill, no localStorage/sessionStorage usage
 - No Agent API Key values in cookies; only the opaque admin session cookie is stored client-side.
+
+## 2026-05-27 Notes
+
+- `AgentConfig` now includes `expires_at` ISO timestamp; empty value means key does not expire.
+- `MCPAuthMiddleware` rejects expired agent keys.
+- `register_tools` requires `profile_code` across MCP tools and checks match with active 8-char vault code.
+- Server/target resolution errors are intentionally generic to avoid inventory leakage.
+
+## 2026-05-27 Notes (Recovery)
+
+- Added `reset_master_password_with_recovery()` and one-time recovery key reveal flow.
+- Recovery sidecar file format: JSON envelope (`scrypt` + `AES-256-GCM`) at `<vault_path>.recovery`.
+- Added `consume_pending_recovery_key()` for one-time admin display.
+- `reset_vault()` now clears runtime master password state so restart-style tests cannot pass via
+  stale in-memory secrets.
+- App lifespan attempts auto-unlock from `PGSENTINEL_MASTER_PASSWORD` or
+  `PGSENTINEL_MASTER_PASSWORD_FILE` when a vault exists.

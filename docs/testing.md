@@ -40,6 +40,23 @@ docker compose config
 docker build -t pgsentinel-mcp:test .
 ```
 
+## Restart/Recreate Smoke Test
+
+For deployment changes, verify the real container, not only `TestClient`:
+
+```bash
+docker compose build pgsentinel-mcp
+docker compose up -d --force-recreate pgsentinel-mcp
+curl -i http://127.0.0.1:8088/health
+curl -i -X POST http://127.0.0.1:8088/admin/login \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data 'master_password=definitely-wrong-password'
+```
+
+Expected: the login attempt returns `401 Invalid master password`, not `500`; this confirms audit log
+writes are not blocked by bind-mount permissions. If `PGSENTINEL_MASTER_PASSWORD_FILE` points to a
+valid mounted secret, `/health` should report `vault: unlocked` after startup.
+
 ## MCP Endpoint Smoke Test
 
 After setup and vault unlock, test the MCP endpoint with a real agent key:

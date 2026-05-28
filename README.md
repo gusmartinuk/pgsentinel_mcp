@@ -29,7 +29,7 @@ PgSentinel sits between the agent and your infrastructure:
 - **PostgreSQL diagnostics** — health check, schema discovery, table description, sample rows, migration history, failed jobs
 - **Policy-guarded SQL** — `query_readonly_sql` with `readonly_default` / `guarded_write` modes, per-category toggles, and hard row caps
 - **Encrypted vault** — Argon2id + AES-256-GCM, master-password protected, auto-locking
-- **Web admin panel** — manage servers, PostgreSQL targets, monitoring endpoints, agent keys, and SQL policy
+- **Web admin panel** — manage definitions (VPS + optional PostgreSQL per definition), agent keys, and SQL policy
 - **Multi-vault support** — switch, import, and export named vaults from the UI
 - **Full audit trail** — every admin action and MCP tool call logged to JSONL, secrets never written
 - **Secret masking** — all tool output is scrubbed for common credential patterns before returning to the agent
@@ -61,13 +61,13 @@ The agent **cannot**:
 
 ## Screenshots
 
-| Login | Dashboard | Servers |
-|-------|-----------|---------|
-| ![login](docs/images/login.png) | ![dashboard](docs/images/dashboard.png) | ![servers](docs/images/servers.png) |
+| Login | Dashboard | Definitions |
+|-------|-----------|-------------|
+| ![login](docs/images/login.png) | ![dashboard](docs/images/dashboard.png) | ![definitions](docs/images/definitions.png) |
 
-| PostgreSQL targets | Settings | Audit log |
-|--------------------|----------|-----------|
-| ![postgres](docs/images/postgres.png) | ![settings](docs/images/settings.png) | ![audit](docs/images/audit.png) |
+| Definition form | Settings | Audit log |
+|-----------------|----------|-----------|
+| ![definition_form](docs/images/definition_form.png) | ![settings](docs/images/settings.png) | ![audit](docs/images/audit.png) |
 
 ---
 
@@ -134,15 +134,21 @@ curl -i -sS \
   -X POST http://127.0.0.1:8088/mcp/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"demo","version":"1.0"}}}'
 
-# 2) Call a tool
+# 2) Call a tool — every tool call must pass the 8-char definition code as profile_code
 curl -sS \
   -H "Authorization: Bearer pgs_ai_YOUR_KEY" \
   -H "mcp-session-id: SESSION_ID_FROM_STEP_1" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -X POST http://127.0.0.1:8088/mcp/mcp \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"health_overview","arguments":{}}}'
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"health_overview","arguments":{"profile_code":"abcd1234"}}}'
 ```
+
+> Every tool requires a `profile_code` argument — the 8-character code of the
+> definition you want to act on (created in **Admin → Definitions**). It selects
+> and auto-unlocks that target's vault. Calls without `profile_code` are rejected.
+> One shared agent key works for all definitions: use the same `pgs_ai_*` key in
+> every project's MCP client and switch targets with `profile_code`.
 
 ---
 
@@ -200,16 +206,21 @@ curl -sS \
 
 Targets in the vault can use any of the following modes:
 
+**VPS / Docker host**
+
 | Mode | Description |
 |------|-------------|
-| `local` | Local Docker CLI (dev/testing) |
-| `ssh` | Paramiko SSH to a remote server |
-| `docker_exec_psql_over_ssh` | SSH → `docker exec psql` |
-| `ssh_tunnel_direct_postgres` | SSH tunnel + direct psycopg |
+| `local` | Local Docker socket on this host (dev / single-server) |
+| `ssh` | Paramiko SSH to a remote VPS |
+
+**PostgreSQL**
+
+| Mode | Description |
+|------|-------------|
 | `postgres_direct_tcp` | Direct TCP psycopg (private network / VPN) |
 | `postgres_direct_tls` | Direct TLS psycopg |
-| `https_api` | HTTP requests with Bearer token |
-| `monitoring_endpoint` | HTTP health check endpoint |
+| `docker_exec_psql_over_ssh` | VPS SSH → `docker exec psql` inside the PG container |
+| `ssh_tunnel_direct_postgres` | Direct psycopg through an SSH tunnel |
 
 ---
 
