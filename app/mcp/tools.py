@@ -284,22 +284,24 @@ def register_tools(mcp: Any, config: Any | None = None) -> list[str]:
 def _resolve_server(vault: Any, server: str | None) -> Any:
     if server:
         target = vault.get_server(server)
-        if target is None:
-            raise ValueError("server not found")
-        return target
+        if target is not None:
+            return target
+        # server param didn't match an internal ID — fall back to default.
+        # profile_code already selected the vault (one server per definition),
+        # so agents passing server=<profile_code> still reach the right target.
     default = vault.get_default_server()
     if default:
         return default
-    raise ValueError("specify a server")
+    raise ValueError("no server configured for this definition")
 
 
 def _resolve_postgres_target(vault: Any, postgres_target: str | None, server: str | None = None) -> Any:
     if postgres_target:
         target = vault.get_postgres_target(postgres_target)
-        if target is None:
-            raise ValueError("postgres_target not found")
-        return target
+        if target is not None:
+            return target
+        # Fall back to default — same rationale as _resolve_server.
     default = vault.get_default_postgres_target()
     if default:
         return default
-    raise ValueError("specify a postgres_target")
+    raise ValueError("no PostgreSQL target configured for this definition")
