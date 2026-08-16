@@ -51,6 +51,13 @@ if [ "$(id -u)" = "0" ]; then
   chown "$RUN_AS_USER:$RUN_AS_USER" "$KNOWN_HOSTS"
   chmod 0600 "$KNOWN_HOSTS"
 
+  # Auto-unlock file lives on the data volume, outside the vaults/ chown.
+  MASTER_FILE="${PGSENTINEL_MASTER_PASSWORD_FILE:-}"
+  if [ -n "$MASTER_FILE" ] && [ -e "$MASTER_FILE" ]; then
+    chown "$RUN_AS_USER:$RUN_AS_USER" "$MASTER_FILE"
+    chmod 0600 "$MASTER_FILE"
+  fi
+
   if [ -S /var/run/docker.sock ]; then
     SOCKET_GID="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || true)"
     if [ -n "$SOCKET_GID" ]; then
